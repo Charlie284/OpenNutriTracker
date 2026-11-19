@@ -84,8 +84,8 @@ whether that is losing weight, gaining it, managing a condition, or simply knowi
 | **Cited** | Calorie targets follow IOM 2005, BMI follows WHO, macros follow WHO TRS 916, activity burn follows the 2024 Compendium. The in-app Sources & References screen links every paper ([`sources_screen.dart`](lib/core/presentation/sources_screen.dart)). |
 | **Careful** | The fasting timer opens with a content warning linking BEAT and NEDA, and "Not for me" is a first-class answer ([`fasting_warning_dialog.dart`](lib/features/fasting/presentation/widgets/fasting_warning_dialog.dart)). No streak guilt, and no notification you didn't ask for. The daily reminder is off until you enable it. |
 | **Free** | No paid tier and no ads, with zero advertising or analytics SDKs in [`pubspec.yaml`](pubspec.yaml) to add them with. That includes the micronutrient panel the big-name trackers put behind a subscription. No investors, and GPLv3 leaves no exit that could paywall it later. |
-| **Private** | No account to create. Your diary lives in AES-256-encrypted storage with the key held in the Android Keystore / iOS Keychain, every destination that receives a request is listed under [Privacy](#privacy) with what it's sent, and the release signing fingerprint is published so you can verify your download. |
-| **Portable** | Export your diary, activities, recipes, custom meals and weight history as JSON or CSV, re-import it, or share an entry by QR. The [export format](docs/export-format.md) documents the schema and what it leaves out. |
+| **Private** | No account to create. Your diary lives in AES-256-encrypted storage with the key held in the Android Keystore / iOS Keychain, network requests are explained under [Privacy](#privacy), and the release signing fingerprint is published so you can verify your download. |
+| **Portable** | Export and re-import your diary and activities as JSON or CSV; JSON also includes recipes, weight history, and custom activity templates. Or share an entry by QR. The [export format](docs/export-format.md) documents the schema and what it leaves out. |
 | **Open** | Open Food Facts, USDA FoodData Central (CC0) and the German BLS (CC BY 4.0). The backend is its own open repository you can [self-host](docs/supabase-self-hosting.md). |
 | **Community driven** | Over 30 developers have already contributed code, and most merged pull requests come from someone other than the maintainer. Features and fixes arrive as user issues and PRs, across the app and its food backend, and every translation is contributed on [Weblate](https://hosted.weblate.org/engage/opennutritracker/), which needs no Dart and no local setup. |
 | **Inclusive** | Non-binary calorie estimation grounded in published trans-health research, nine languages, kcal or kJ, and screen-reader support treated as a bug when it breaks. |
@@ -98,11 +98,11 @@ whether that is losing weight, gaining it, managing a condition, or simply knowi
 | 📓 | **Food diary** | Breakfast, Lunch, Dinner, and Snack on a calendar, with per-meal kcal targets. |
 | 📈 | **Trends** | Streaks, calories against your goal line, macro averages, water, and weight over time. |
 | 🥕 | **Micronutrients** | Day and week views for ten nutrients, with optional reference-intake bars. |
-| 🍽️ | **Meals and recipes** | Reusable recipes with photo, brand, and barcode. |
+| 🍽️ | **Meals and recipes** | Custom foods with brand and barcode; reusable recipes with photo and ingredients. |
 | 🏃 | **Activities and weight** | Workout catalogue or custom activities; weight trend against a target. |
 | 💧 | **Water and fasting** | A home-screen water chip and an optional intermittent-fasting timer. |
 | 🎨 | **Themes and units** | Material You accent on Android 12+, sixteen built-in themes, kcal or kJ. |
-| 📤 | **Export and import** | JSON and CSV export, JSON import, and QR sharing. |
+| 📤 | **Export and import** | JSON and CSV export/import, and QR sharing. |
 
 <details>
 <summary>More detail on each feature</summary>
@@ -111,7 +111,7 @@ whether that is losing weight, gaining it, managing a condition, or simply knowi
 - **📓 Food diary:** A calendar-driven diary that breaks the day into Breakfast, Lunch, Dinner, and Snack, with per-meal kcal targets (Standard, OMAD, Five-small, Mediterranean, Two-meal, or a custom share), drag-to-rearrange between meals, and sort by time or by macro contribution.
 - **📈 Trends:** A current and best day-streak card, calories charted against your goal line, daily macro averages, water intake, and weight against target with an estimate of the weeks left to reach it. Switch the window between 7, 30 and 90 days or your whole history.
 - **🥕 Micronutrient panel:** Day and week views for fibre, sodium, saturated fat, sugar, calcium, iron, potassium, vitamin D, vitamin B12, and magnesium, with optional Dietary Reference Intake bars from the IOM tables so you can see where you sit against the reference range.
-- **🍽️ Custom meals + recipes:** Build a one-off custom meal or save a reusable recipe with photo, brand, and barcode. The recipe builder has its own ingredient picker with barcode scanning so you can compose meals from real products without leaving the screen.
+- **🍽️ Custom meals + recipes:** Build a custom meal with photo, brand, and barcode, or save a reusable recipe with photo, servings, and ingredients. The recipe builder has its own ingredient picker with barcode scanning so you can compose meals from real products without leaving the screen.
 - **⚡ Quick add:** When you already know roughly how much you ate, skip the search flow entirely. Quick add takes a title plus kcal (and optional macros) and logs it straight to the meal section.
 - **📷 Barcode scanner:** Scan packaged items for instant lookup, paste a barcode manually when the camera struggles, or attach a barcode to a custom meal so future scans recognise your own foods.
 - **🏃 Activities:** Log workouts from a categorised activity catalogue or define your own custom activities with direct kcal entry and reusable templates.
@@ -120,7 +120,7 @@ whether that is losing weight, gaining it, managing a condition, or simply knowi
 - **⚖️ Weight history:** Capture weight during onboarding and on demand, see the trend on a chart with a dashed line at your target weight, and optionally taper the calorie goal as you approach it.
 - **🎨 Material You + theme picker:** Adopt the system accent colour on Android 12+, or pick from sixteen built-in presets. The app icon adapts to iOS dark and tinted appearances and to Android themed icons.
 - **🔢 kcal or kJ:** Switch the energy unit globally; every diary entry, target, and chart reflects the choice.
-- **📤 Export and import:** Export your diary entries, activities, tracked days, and recipes to a JSON zip, with flat CSV companions for the first three so a spreadsheet can read them ([bundle format](docs/export-format.md)). Paste a JSON blob to import meals, and share a single meal or activity as a QR code another phone can scan. Your profile, weight log, custom-meal catalogue, activity templates, water and fasting history stay out of the bundle.
+- **📤 Export and import:** Export diary entries, activities, tracked days, recipes, weight history, custom activity templates, and attached recipe/custom-meal photos to a JSON zip, or select CSV for diary entries, activities, and tracked days only ([bundle format](docs/export-format.md)). Both formats can be re-imported. Paste a JSON blob to import meals, and share a single meal or activity as a QR code another phone can scan. Your profile, settings, custom-meal catalogue, water and fasting history stay out of the bundle.
 
 </details>
 
@@ -128,7 +128,7 @@ whether that is losing weight, gaining it, managing a condition, or simply knowi
 
 No account, no sign-in, no analytics, no ads. Your profile, diary, activities, weight, water and fasting history, custom meals, and recipes live in local [Hive](https://pub.dev/packages/hive_ce) boxes encrypted with AES-256. The key is generated on first launch, kept in the Android Keystore / iOS Keychain, and never transmitted ([source](lib/core/utils/secure_app_storage_provider.dart)). **Settings → Delete all my data** wipes the active profile. Formal policy: [Data Protection](https://www.iubenda.com/privacy-policy/53501884).
 
-**What leaves your device.** Three destinations, nothing else:
+**What leaves your device.** Food lookups and optional crash reporting use these services; your diary is not uploaded to a food backend:
 
 | Destination | When | What is sent |
 | :-- | :-- | :-- |
@@ -138,9 +138,11 @@ No account, no sign-in, no analytics, no ads. Your profile, diary, activities, w
 
 [USDA FoodData Central](https://fdc.nal.usda.gov/), the German [BLS](https://www.blsdb.de), INDB and TBCA are where the food *data* comes from, not places your device talks to. Those datasets are ingested into the Supabase backend ahead of time ([self-hosting guide](docs/supabase-fdc-self-hosting.md)), so a search reaches that backend and stops there. Settings → Food databases chooses which datasets a search covers. Five are selectable today, with INDB and TBCA in the schema but not yet carrying data ([`sp_const.dart`](lib/features/add_meal/data/dto/sp/sp_const.dart)).
 
-Requests carry a User-Agent naming the app, platform, and version, with no user or device identifier. Search results are cached locally and pruned after 90 days.
+Food images are fetched from the image URLs supplied by food records, which can contact image/CDN hosts. Reference and attribution links open external sites when you tap them. Demo photos are bundled with the app and need no network access.
 
-**Crash reporting** is off until you enable it, and initializes only in release builds ([`main.dart:119`](lib/main.dart:119)). `sendDefaultPii` stays `false`, so no username, email, or IP-derived identity is attached. Disabling it, or deleting your data, closes the SDK immediately.
+Open Food Facts API requests carry a User-Agent naming the app, platform, and version, with no user or device identifier. Search results are cached locally and pruned after 90 days.
+
+**Crash reporting** is off until you enable it, and initializes only in release builds ([`main.dart`](lib/main.dart)). `sendDefaultPii` stays `false`, so no username, email, or IP-derived identity is attached. Disabling it, or deleting your data, closes the SDK immediately.
 
 **Permissions:** camera (barcode scanning, meal photos), photo library (meal photos, exports), notifications (daily reminder, fasting timer), internet (food lookups), and receive-boot-completed (re-registering the reminder after a reboot). No location, contacts, microphone, or health-data access.
 
@@ -163,7 +165,7 @@ To verify a downloaded APK against that fingerprint, run:
 apksigner verify --print-certs /path/to/opennutritracker.apk
 ```
 
-The `SHA-256` line in the output should match the value above exactly.
+Compare the certificate `SHA-256` digest after removing the `SHA256:` prefix and colons from the value above and ignoring letter case; `apksigner` prints the digest without colon separators.
 
 </details>
 

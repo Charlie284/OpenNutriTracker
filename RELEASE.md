@@ -14,4 +14,6 @@ keytool -list -v -keystore /path/to/release.keystore -alias <alias>
 
 Look for the `SHA256:` line under `Certificate fingerprints`. The value is stable for the lifetime of the keystore — it only changes if the signing key itself is rotated, which would also force every existing installation to uninstall before upgrading — so once the README has the right value, it should not need to be touched again on routine releases.
 
-If the key is ever rotated, update the fingerprint in `README.md` in the same commit as the key change, so that anyone verifying a freshly downloaded APK against the README sees the new value as soon as the new build is published.
+If the key is ever rotated, update the fingerprint in `README.md` alongside the signing configuration change, so that anyone verifying a freshly downloaded APK against the README sees the new value as soon as the new build is published. Never commit the private keystore.
+
+The website also reads the signing fingerprint and per-asset hashes from `docs/site/release-info.json`. `.github/workflows/update-release-fingerprint.yml` extracts these from published APK/IPA assets and opens a PR against `develop`; it can also be dispatched manually for an existing tag. Review and merge that update, then include it in `main` for the site deployment. Key rotation must keep both the README fingerprint and this website metadata in sync with the released APK.

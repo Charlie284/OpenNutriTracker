@@ -12,8 +12,8 @@ external crash dashboards (this app is privacy-first; Sentry is opt-in only).
 3. One PR per issue. Target **`develop`** (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 4. Read [AGENTS.md](../AGENTS.md) before coding:
    conventional commits, **no AI `Co-authored-by` trailers**,
-   `Semantics(identifier:)` on new interactive widgets, manual l10n under
-   `lib/l10n/` **and** `lib/generated/` when strings change.
+   `Semantics(identifier:)` on new interactive widgets, ARB changes under
+   `lib/l10n/` and `just gen_l10n` when strings change (never edit `lib/generated/`).
 5. Prefer `just ci` (or format + analyze + targeted tests) before opening a PR.
 
 These are **tickets to file**, not an implemented roadmap. Refine titles/IDs
@@ -66,17 +66,17 @@ kcal/kJ labels.
 - `lib/core/presentation/widgets/edit_activity_dialog.dart` — non-custom branch
   uses the literal `'min'` as the quantity field suffix
   (`suffix = … : 'min'`).
-- Wire through existing ARB + generated l10n (add a key such as
+- Wire through existing ARB localization (add a key such as
   `minuteShortLabel` / reuse a suitable existing string if one already means
   “min” as a unit). Follow CONTRIBUTING: update **every** `lib/l10n/intl_*.arb`,
-  `lib/generated/l10n.dart`, and each `lib/generated/intl/messages_*.dart`.
-- Verify with `just check_intl`.
+  then run `just gen_l10n` to regenerate the gitignored Dart files.
+- Verify with `flutter analyze` and the relevant tests.
 
 **Acceptance criteria:**
 
 - [ ] No naked `'min'` user-facing string in that dialog.
 - [ ] All supported locales have a translation.
-- [ ] `just check_intl` passes.
+- [ ] `just gen_l10n`, `flutter analyze`, and the relevant tests pass.
 
 **Out of scope:** Reworking custom-kcal activity editing; new duration units beyond avoiding the hardcode.
 
