@@ -290,6 +290,8 @@ Genuine multi-line body or description copy (disclaimers, helper text) is meant 
 
 ## Architecture
 
+For diagrams, startup/recovery, profile storage boundaries, and a feature code map, see [docs/architecture.md](docs/architecture.md).
+
 The project follows **Clean Architecture** with a feature-based module structure.
 
 ### App startup sequence

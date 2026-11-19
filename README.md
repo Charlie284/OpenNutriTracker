@@ -225,6 +225,8 @@ Built with Flutter and Dart, following a clean-architecture split (data / domain
 
 **Getting started:** see [GettingStarted.md](GettingStarted.md) for setting up a local build.
 
+**Documentation:** start at the [audience-based documentation index](docs/README.md) for user, contributor, translator, self-hosting, architecture, testing, and release guides.
+
 **Data export format:** the export bundle (Settings → Export / Import App Data → Export) is documented at [`docs/export-format.md`](docs/export-format.md), covering both the JSON schema and the CSV companion the import / export round-trip uses.
 
 **Food database backend:** the multi-source food database lives in its own repository, [OpenNutriTracker-Backend](https://github.com/simonoppowa/OpenNutriTracker-Backend), which holds the schema, import pipeline, and translation tooling. Self-hosting it and pointing a local build at your own Supabase project is documented at [`docs/supabase-self-hosting.md`](docs/supabase-self-hosting.md).
