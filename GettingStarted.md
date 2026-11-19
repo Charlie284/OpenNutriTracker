@@ -44,7 +44,7 @@ This downloads the pinned Flutter version (defined in `.fvmrc`) and creates a `.
 
 2. Configure the Android SDK path for Flutter:
 
-`flutter config --android-sdk "e:\path\to\androidSDK"`
+`fvm flutter config --android-sdk "e:\path\to\androidSDK"`
 
 3.⁠ ⁠Clone the repository with git in a VSC terminal (make sure the active folder in the terminal is your created folder from step 1):
 
@@ -54,18 +54,21 @@ This downloads the pinned Flutter version (defined in `.fvmrc`) and creates a `.
 
 `cp .env.example .env`
 
-`.env` is gitignored. Edit it to fill in real values (or leave the placeholders for a debug build that doesn't need the live backend — see `docs/supabase-self-hosting.md` for pointing the app at your own Supabase food database).
+`.env` is gitignored. Fill in your backend values — see [the self-hosting guide](docs/supabase-self-hosting.md) for your own Supabase food database. Supabase initializes even in debug builds, so do not leave `PROJECT_URL` unchanged. For tests without a live backend, CI uses `https://stub.supabase.co` as the URL and `ci-stub` as the anon key, plus `ci-stub` for `FDC_API_KEY` and `https://stub@sentry.io/0` for `SENTRY_DNS`; these do not provide live food search.
 
 5.⁠ ⁠Get Dependencies.
 
-`flutter pub get`
+`fvm flutter pub get`
 
-6.⁠ ⁠Run Build Runner to generate Files.
+6.⁠ ⁠Generate localizations and run Build Runner.
 
-`dart run build_runner build`
+```sh
+fvm flutter gen-l10n
+fvm dart run build_runner build
+```
 
-At the best revert all the visible generated files now, only env.g.dart is needed, it is not checked in because it is in .gitignore.
+`lib/generated/` and `lib/core/utils/env.g.dart` are gitignored generated output. Keep regenerated Hive adapters and JSON serializers with any corresponding source changes; do not edit generated files by hand.
 
 7.⁠ ⁠Restart VSC, VSC detects now that this is a flutter project. On the Bottom Right "No Device" ist displayed, click on it, then select "Start Medium Phone" on the command Palette on the top. Wait for the phone to boot up.
 
-8. Press F5 to start a debug session (may take a while on the first time). Keep the virtual phone running all the time, just start and stop Debugging.
+8. Run `fvm flutter run --flavor develop` (or `just dev`) to start a debug session (may take a while on the first time). The default VS Code launch configuration does not specify a flavor; add `"args": ["--flavor", "develop"]` to it if you want to use F5. Keep the virtual phone running while restarting the app.

@@ -6,31 +6,37 @@ issue #40 asked for it: people who want to keep their nutrition history in a
 plaintext format they can sync via Syncthing, open in a spreadsheet, or feed
 into other tooling deserve a stable schema they can read against. Issue #132
 asked specifically for CSV export so the import / export round trip would be
-symmetric, and that lives alongside the JSON in the same bundle.
+symmetric. The format selector offers separate JSON and CSV bundles.
 
 ## Zip layout
 
 The export is a single `.zip` file (default filename
-`opennutritracker-export.zip`). It contains:
+`opennutritracker-export.zip`). Select JSON or CSV before exporting or
+importing. The JSON bundle contains:
 
 | File                  | Format | Notes                                                              |
 | --------------------- | ------ | ------------------------------------------------------------------ |
 | `user_intake.json`    | JSON   | Canonical format the app re-imports from.                          |
-| `user_intake.csv`     | CSV    | Flat companion to `user_intake.json` — same rows, flattened meal.  |
 | `user_activity.json`  | JSON   | Canonical format the app re-imports from.                          |
-| `user_activity.csv`   | CSV    | Flat companion to `user_activity.json`.                            |
 | `user_tracked_day.json` | JSON | Canonical format the app re-imports from.                          |
-| `user_tracked_day.csv`  | CSV  | Flat companion to `user_tracked_day.json`.                         |
 | `user_recipes.json`   | JSON   | Recipes only. Nested-ingredient shape, no CSV counterpart.         |
+| `weight_log.json`     | JSON   | Weight history.                                                   |
+| `custom_activity_templates.json` | JSON | Reusable custom activity templates.                     |
+| `recipe_images/`, `meal_images/` | Images | Attached recipe/custom-meal photos, when present.       |
 
-User profile (height, weight, birthday, PAL, goal) is intentionally **not**
-included — see `core/data/data_source/user_data_source.dart` for the box that
-stores it.
+The CSV bundle contains only `user_intake.csv`, `user_activity.csv`, and
+`user_tracked_day.csv`: flat tables for the corresponding datasets, without
+recipes, photos, weight history, or custom activity templates.
 
-The user can re-import the same zip via **Settings → Import**. The importer
-reads the JSON files and ignores the CSV companions. The CSV files exist so a
-spreadsheet, a Syncthing-style backup, or external tooling can read the same
-data without going through Hive.
+User profile (height, weight, birthday, PAL, goal), settings, custom-meal
+definitions, water, and fasting history are **not** included. See
+`lib/core/data/data_source/user_data_source.dart` for profile storage.
+Logged meals contain embedded food snapshots, but the custom-meal library
+itself is not serialized, even though its attached photos are included in JSON exports.
+
+The user can re-import the same zip via **Settings → Import**, selecting the
+matching format. CSV is also suitable for spreadsheets or external tooling
+without going through Hive.
 
 ## JSON schema
 
@@ -141,16 +147,16 @@ Array of per-day calorie/macro totals:
 
 ### `user_recipes.json`
 
-Array of recipe records, each holding an `ingredients` list referencing
-external food items by code. The nested-ingredient shape makes CSV a poor fit
+Array of recipe records, each holding an `ingredients` list with embedded
+`snapshotMeal` records, `amount`, `unit`, and `convertedAmountG`. The nested-ingredient shape makes CSV a poor fit
 here, so recipes ship as JSON only. See `lib/core/data/dbo/recipe_dbo.dart`
 for the precise field list.
 
 ## CSV schema
 
-All CSV files use UTF-8, comma as the field separator, `\n` as the line
-terminator, and the same minimal quoting rules as the existing CSV importer
-(`lib/core/utils/csv_row_parser.dart`):
+All CSV files use UTF-8, comma as the field separator, and `\n` as the line
+terminator. The exporter uses these quoting rules (the importer uses
+`lib/core/utils/csv_row_parser.dart`, with limitations noted below):
 
 - A cell is wrapped in double quotes when it contains `,`, `"`, `\n`, or `\r`.
 - Embedded double quotes inside a quoted cell are escaped by doubling: `""`.
@@ -238,26 +244,24 @@ Header lookup is case-insensitive.
 | `protein_goal`      | number | no       | g.                                   |
 | `protein_tracked`   | number | no       | g.                                   |
 
-## Round-trip guarantee
+## Round-trip limitations
 
-The CSV files round-trip cleanly through
-`lib/core/utils/csv_data_exporter.dart` — exporting a list of DBOs and parsing
-the resulting CSV yields structurally equal DBOs (modulo
-empty-string-vs-null normalisation on nullable fields). The unit test
-`test/unit_test/csv_data_exporter_test.dart` pins this behaviour.
+`lib/core/utils/csv_data_exporter.dart` exports and parses the columns listed
+above. CSV does not preserve every DBO field: for example, activity `userKcal`
+and newer meal metadata are not represented. The parser trims cell whitespace
+and normalizes empty nullable cells to null. It splits physical lines before
+parsing cells, so embedded newlines do not round-trip, even in quoted cells.
+`test/unit_test/csv_data_exporter_test.dart` covers supported round-trip cases.
 
-The in-app **Import** action still reads the JSON files only, so external
-tooling that wants to write data back into the app must produce the JSON
-shape above. Future work could surface a "Import CSV (intakes /
-activities / tracked days)" entry point if there's demand — for now the
-CSV is read-only from the app's perspective and read-write from your
-spreadsheet's perspective.
+The in-app **Import** action accepts JSON or CSV zips according to the selected
+format. JSON preserves more fields and includes the additional datasets and
+photos listed above, but neither format is a complete backup of all app data.
 
 ## Syncthing-friendly notes
 
-The export is deliberately plain UTF-8 inside a normal zip — no binary
-encoding, no app-specific framing — so it is safe to leave a copy in a
-Syncthing folder and let the same bundle move between devices. The JSON
-files re-import losslessly; the CSV files are stable across versions
-(columns can be added at the end, never reordered or removed without a
-schema bump).
+The data tables are plain UTF-8 inside a normal zip; JSON bundles can also
+contain binary image files. You can keep a copy in a Syncthing folder and
+move it between devices, but this is a manual export/import workflow, not
+live database synchronization. Exports are not encrypted, so protect the zip
+as personal data. There is no schema-version field enforcing compatibility
+across future versions; keep the round-trip limitations above in mind.

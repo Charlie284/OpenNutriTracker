@@ -39,6 +39,14 @@ Build a signed App Store IPA using Flutter
 
 Upload the latest IPA to TestFlight
 
+### ios beta_from_ipa
+
+```sh
+[bundle exec] fastlane ios beta_from_ipa
+```
+
+Upload an already-built IPA to TestFlight
+
 ### ios release
 
 ```sh

@@ -23,7 +23,7 @@ All common tasks are in the `justfile`:
 
 ```sh
 just install       # flutter pub get
-just build         # dart run build_runner build --delete-conflicting-outputs
+just build         # dart run build_runner build
 just format        # dart format ./lib/core ./lib/features ./lib/l10n ./test
 just test          # flutter test
 just gen_l10n      # regenerate lib/generated/ from the ARBs (gitignored output)
@@ -71,13 +71,13 @@ is **not** dev-only, since the onboarding flow needs it in every build:
 - `demo_content.dart` — the food set, activity pool, recipes, and the
   per-day macro-targeting algorithm. Duration-agnostic; reused unchanged by
   both presets.
-- `unsplash_attribution.dart` — a small, hand-picked set of Unsplash photo
-  ids (not a live search), so seeding needs network access only to fetch
-  those fixed URLs (and downloads the profile picture locally); a failed
-  lookup just skips that one photo rather than aborting the seed. Also
+- `unsplash_attribution.dart` — credits for a small, hand-picked set of
+  Unsplash photos. Meal photos and the profile portrait are bundled assets
+  copied to local image storage, so seeding needs no network access; an
+  asset/storage failure skips that photo rather than aborting the seed. Also
   carries the photographer-credit lookup and small credit-line widget shown
   on the meal detail screen and the profile editor — see the file's doc
-  comment for why hardcoded URLs sidestep Unsplash's stricter API usage
+  comment for the distinction from Unsplash's stricter API usage
   terms.
 
 Data is generated from a fixed-seed RNG (`demoRng` in `demo_content.dart`),
@@ -141,7 +141,7 @@ dart run build_runner build
 
 **DTO files** live under `lib/features/add_meal/data/dto/` (OFF, FDC, and Supabase `sp` subfolders). Regenerate when you add or change API response fields.
 
-**`lib/core/utils/env.g.dart`** is the only generated file that is gitignored. After a fresh clone, run `just build` with a valid `.env` file before the app will compile.
+**`lib/core/utils/env.g.dart`** and localization output under `lib/generated/` are gitignored. After a fresh clone, run `just gen_l10n` and `just build` with a valid `.env` file before the app will compile.
 
 ## Localization
 
@@ -290,6 +290,8 @@ Genuine multi-line body or description copy (disclaimers, helper text) is meant 
 
 ## Architecture
 
+For diagrams, startup/recovery, profile storage boundaries, and a feature code map, see [docs/architecture.md](docs/architecture.md).
+
 The project follows **Clean Architecture** with a feature-based module structure.
 
 ### App startup sequence
@@ -309,7 +311,7 @@ lib/
       entity/       # Plain domain models (suffixed Entity)
       usecase/      # Business logic operations
     presentation/
-      main_screen.dart  # Bottom nav shell (Home / Diary / Profile)
+      main_screen.dart  # Bottom nav shell (Home / Diary / Trends / You)
       widgets/          # Shared UI components
     styles/       # Color schemes, typography
     utils/        # locator.dart (DI), hive_db_provider.dart, env.dart, calc/, etc.
@@ -319,6 +321,7 @@ lib/
   features/       # One folder per screen/flow
     home/         # Dashboard with daily kcal/macro summary, water chip, fasting chip
     diary/        # Calendar-based food diary, micronutrient panel, sort controls
+    trends/       # Streaks, calorie/macro averages, water and weight trends
     profile/      # User stats, BMI, goals, weight history chart
     add_meal/     # Food search (text + barcode) and meal logging
     meal_detail/  # Nutritional detail view for a food item, with daily kcal banner
@@ -327,15 +330,15 @@ lib/
     add_activity/ # Log physical activity, including custom kcal templates
     activity_detail/ # View logged activity
     fasting/      # Intermittent-fasting timer with content-warning gate
-    recipes/      # Reusable recipes with photo, brand, ingredient picker
+    recipes/      # Reusable recipes with photo, servings, ingredient picker
     settings/     # App settings, data export/import, day-start, theme picker
     onboarding/   # First-run user setup flow
   dev/            # Dev-only main_dev.dart entry point (never shipped) — see "Demo data" above
-  generated/      # Intl files — maintained manually (see Localization above)
+  generated/      # Gitignored flutter gen-l10n output (never edit by hand)
   l10n/           # Source ARB translation files
 ```
 
-Each feature follows the same three-layer structure:
+Features use these layers where needed; many presentation-only features use shared core domain/data code:
 
 - `data/` — DTOs and remote/local data sources
 - `domain/` — feature-specific entities and use cases
@@ -343,34 +346,38 @@ Each feature follows the same three-layer structure:
 
 ### Navigation
 
-Named routes are defined in `NavigationOptions` and registered in `main.dart`. The three main tabs (Home / Diary / Profile) share a single `MainScreen` shell with `NavigationBar`; all other screens are pushed onto the route stack.
+Named routes are defined in `NavigationOptions` and registered in `main.dart`. The four main tabs (Home / Diary / Trends / You) share a single `MainScreen` shell with `NavigationBar`; other screens are pushed onto the route stack.
 
 ### State management
 
-**flutter_bloc** is used throughout. Every screen has a corresponding `*Bloc` with `*Event` and `*State` files.
+**flutter_bloc** handles feature state with `*Bloc`, `*Event`, and `*State` files. Not every screen has its own BLoC: simple screens can use local widget state, while app-wide theme, locale, and energy-unit state use Provider/ChangeNotifier.
 
 ### Dependency injection
 
-**GetIt** is the service locator. All registrations happen in `lib/core/utils/locator.dart` (`initLocator()`), called once at startup. Registration order matters — data sources first, then repositories, then use cases, then BLoCs.
+**GetIt** is the service locator. All registrations happen in `lib/core/utils/locator.dart` (`initLocator()`), called at startup. After storage and backend initialization, BLoCs are registered before use cases, repositories, and data sources; factories and lazy singletons resolve their dependencies when requested.
 
 - **`registerLazySingleton`** — screen-persistent BLoCs (Home, Diary, CalendarDay, Profile, Settings, Onboarding). `HomeBloc` and `DiaryBloc` cross-reference each other via the locator at runtime.
 - **`registerFactory`** — per-navigation BLoCs (MealDetail, Scanner, EditMeal, AddMeal, Products, Food, Activities, ActivityDetail, ExportImport). A fresh instance is created each navigation.
 
 ### Local database
 
-**hive_ce** (the actively maintained community fork of Hive) is used for all persistent local storage, AES-256 encrypted. The boxes opened by `HiveDBProvider`:
+**hive_ce** (the actively maintained community fork of Hive) stores structured local data in AES-256-encrypted boxes. `HiveDBProvider` opens global boxes and per-profile boxes. Per-profile names append the profile's `boxSuffix`; the first profile uses an empty suffix for compatibility. Switching profiles closes the outgoing profile's boxes and opens the target's. Custom meals, recipes, activity templates, caches, and app settings are shared globally.
+
+The boxes opened by `HiveDBProvider` (base names below):
 
 | Box                            | DBO type / payload          | Purpose                                                              |
 | ------------------------------ | --------------------------- | -------------------------------------------------------------------- |
-| `ConfigBox`                    | `ConfigDBO`                 | App settings: theme, units, kcal adjustment, per-macro % goals       |
+| `ConfigBox`                    | `ConfigDBO`                 | Per-profile nutrition settings: kcal adjustment, per-macro % goals |
+| `AppConfigBox`                 | `ConfigDBO`                 | Shared app settings: theme, language, units, notifications, consent |
+| `ProfileBox`                   | `ProfileDBO`                | Global profile registry                                             |
 | `IntakeBox`                    | `IntakeDBO`                 | Meal log entries (links to `MealDBO`, typed by `IntakeTypeDBO`)      |
 | `UserActivityBox`              | `UserActivityDBO`           | Logged physical activities                                           |
 | `UserBox`                      | `UserDBO`                   | User profile: height, weight, birthday, gender, PAL, goal            |
 | `TrackedDayBox`                | `TrackedDayDBO`             | Per-day calorie/macro running totals for diary calendar              |
 | `CustomMealBox`                | `MealDBO`                   | User-saved custom meals (search index for the food picker)           |
 | `RecipeBox`                    | `RecipeDBO`                 | User-saved recipes with photo, brand, ingredients                    |
-| `CachedOffMealBox`             | `MealDBO`                   | Open Food Facts response cache for offline / slow-connection use     |
-| `CachedOffMealTimestampsBox`   | `int`                       | Cache freshness timestamps for the OFF cache                         |
+| `CachedOffMealBox`             | `MealDBO`                   | OFF and Supabase response cache for offline / slow-connection use    |
+| `CachedOffMealTimestampsBox`   | `int`                       | Cache freshness timestamps for the shared remote-search cache        |
 | `CustomActivityTemplateBox`    | `CustomActivityTemplateDBO` | Reusable templates for custom-kcal activities                        |
 | `WeightLogBox`                 | `WeightLogDBO`              | Weight history points for the profile trend chart                    |
 | `WaterIntakeBox`               | `WaterIntakeDBO`            | Water log entries powering the home chip                             |
@@ -395,13 +402,13 @@ When adding a new `@HiveType`, assign a unique `typeId`. Check all existing DBOs
 Calculation utilities live in `lib/core/utils/calc/`:
 
 - **TDEE** — `TDEECalc.getTDEEKcalIOM2005()` (IOM 2005 gender-specific equation). A WHO 2001 formula exists but is unused.
-- **Calorie goal** — TDEE + weight-goal adjustment (±500 kcal) + optional user kcal offset + today's burned activity kcal.
+- **Calorie goal** — TDEE + weight-goal adjustment + optional user kcal offset + today's burned activity kcal. The adjustment uses signed weekly kg goal × 1100 kcal/day when set, otherwise ±500 kcal (or zero for maintenance); optional target-weight tapering reduces the adjustment near the target.
 - **Macro defaults** — 60% carbs / 25% fat / 15% protein of total kcal goal. Per-macro overrides stored in `ConfigEntity`.
 - **MET** — `MetCalc` converts MET × weight × hours to burned kcal for activities.
 
 ### Data export / import
 
-Settings screen exports to a `.zip` that bundles intakes, activities, tracked days, and recipes in both JSON (canonical, re-importable) and CSV (flat, for spreadsheets) formats — see [`docs/export-format.md`](docs/export-format.md) for the full schema. Import accepts the same zip and merges its contents into the existing boxes. User profile data (height, weight, birthday, PAL, goal) is intentionally **not** included in the export. Settings → Import also supports a pasted JSON blob for ad-hoc meal imports.
+Settings exports a `.zip` in the selected format: JSON includes intakes, activities, tracked days, recipes, weight history, custom activity templates, and attached recipe/custom-meal photos; CSV includes only intakes, activities, and tracked days. Both formats can be imported into existing boxes — see [`docs/export-format.md`](docs/export-format.md) for schemas and limitations. User profile data, settings, custom-meal definitions, water, and fasting history are **not** included. Settings → Import also supports a pasted JSON blob for ad-hoc meal imports.
 
 ## GitHub issue and PR templates
 
